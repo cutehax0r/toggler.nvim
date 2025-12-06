@@ -14,7 +14,7 @@
 ---    highlights by default because I don't think it really matters that much.
 local M = {}
 
- --- @class TogglerFeature definition of UI feature to toggle on/off
+--- @class TogglerFeature definition of UI feature to toggle on/off
 --- @field name string short name of the feature (used with CLI `toggle` and `status`)
 --- @field description? string user-friendly description of the feature being toggled
 --- @field get fun():boolean function that returns true/false for whether the feature is currently enabled

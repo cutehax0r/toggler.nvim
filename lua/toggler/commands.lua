@@ -4,13 +4,13 @@
 --- * `:Toggler get foo` to return the status of the `foo` feature. True = on, false = off.
 ---
 --- * `:Toggler set foo on` forces the `foo` feature on. You can also use `off` to force it off. For
---- convenience it also supports true/false and enabled/disabled. Maybe that isn't worth the
---- complexity?
+---   convenience it also supports true/false and enabled/disabled. Maybe that isn't worth the
+---   complexity?
 ---
 --- * `:Toggler toggle foo` turns on foo if it's off and turns off foo if it's on.
 ---
 --- * `:Toggler picker` displays the snacks picker so you can use a graphical interface to toggle
---- things.
+---   things.
 ---
 --- If the `name` of the feature is multiple words then quote it. Tab completion is supported. 
 
