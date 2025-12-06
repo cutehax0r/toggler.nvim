@@ -12,13 +12,24 @@ The minimum viable configuration looks something like this:
 ### Lazy.nvim
 
 ```lua
-return {
+{
   "cutehax0r/toggler.nvim",
-  dependencies = { "folke/snacks.nvim" },
+  dependencies = {
+    "folke/snacks.nvim"
+  },
+  command = {
+    "Toggler"
+  },
   config = function()
     require('toggler').setup({
       features = {
-        -- your features go here
+        -- Define your features here
+        {
+          name = "Spelling",
+          description = "Show red underline for spelling errors",
+          get = function() return vim.wo.spell end,
+          set = ":set spell!",
+        },
       }
     })
   end,
