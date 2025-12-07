@@ -2,7 +2,7 @@
 
 A Neovim UI for toggling features on and off. Manage multiple feature toggles in one place without saving state between sessions.
 
-![IOU a UI Demo](./docs/demo.gif)
+![Demonstration GIF](./docs/demo.gif)
 
 (See [Motivation](#motivation) for more context on why this plugin exists.)
 
