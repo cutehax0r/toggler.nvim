@@ -1,0 +1,695 @@
+*toggler.txt* Toggler
+*toggler.nvim*
+
+Author:   cutehax0r
+Version:  0.1.0
+Homepage: <https://github.com/cutehax0r/toggler.nvim>
+License:  MIT license
+
+==============================================================================
+INTRODUCTION                                                    *toggler-intro*
+
+Toggler is a Neovim plugin that provides an interactive UI for toggling
+features on and off. Manage multiple feature toggles in one place without
+saving state between sessions.
+
+Key features:
+  • Fuzzy-searchable picker UI powered by snacks.nvim
+  • Toggle single or multiple features at once
+  • Command-line interface for scripting and keybindings
+  • Flexible feature definitions (Vim commands, keystrokes, or Lua functions)
+  • Customizable icons and highlight groups
+
+Toggler is designed for grouped, interactive toggling of features that aren't
+worthy of having their own keybinding. Use it to manage visual clutter,
+feature flags, or any toggleable setting.
+
+==============================================================================
+INSTALLATION                                              *toggler-install*
+
+Toggler requires snacks.nvim as a dependency.
+
+Lazy.nvim example: >lua
+    {
+      "cutehax0r/toggler.nvim",
+      dependencies = {
+        "folke/snacks.nvim"
+      },
+      command = {
+        "Toggler"
+      },
+      config = function()
+        require('toggler').setup({
+          features = {
+            {
+              name = "Spelling",
+              description = "Show red underline for spelling errors",
+              get = function() return vim.wo.spell end,
+              set = ":set spell!",
+            },
+          }
+        })
+      end,
+    }
+<
+
+==============================================================================
+USAGE                                                       *toggler-usage*
+
+Using the Picker                                        *toggler-usage-picker*
+
+Open the feature picker with:
+>vim
+    :Toggler
+    :Toggler picker
+<
+
+Keyboard shortcuts in the picker:
+  • Type: Fuzzy search features by name or description
+  • <C-n>/<C-p>: Navigate between items
+  • <enter>: Toggle selected feature (or all marked features)
+  • <tab>: Mark/unmark feature for batch toggling
+  • <esc>: Close picker
+
+Using the Command Line                              *toggler-usage-command*
+
+For scripting or direct toggling, use the CLI:
+
+>vim
+    :Toggler get <name>                  " Show current state
+    :Toggler set <name> <state>          " Set to specific state
+    :Toggler toggle <name>               " Toggle on/off
+<
+
+State values: `true`, `false`, `on`, `off`, `enabled`, `disabled`
+
+Examples:
+>vim
+    :Toggler get Spelling
+    :Toggler set Spelling false
+    :Toggler toggle Spelling
+    :Toggler set "Multi Word Name" on   " Use quotes for multi-word names
+<
+
+Tab completion is available for feature names and state values.
+
+==============================================================================
+COMMANDS                                                  *toggler-commands*
+
+                                                             *:Toggler*
+:Toggler [{subcommand}] {args}
+
+    Main Toggler command. See below for subcommands. If no subcommand is
+    given, opens the feature picker UI.
+
+                                                         *:Toggler-picker*
+:Toggler [picker]
+
+    Open the interactive feature picker UI. This is the default action if
+    no subcommand is specified.
+
+                                                            *:Toggler-get*
+:Toggler get {name}
+
+    Show the current state of feature {name}. Returns a notification with
+    "enabled" or "disabled".
+
+                                                            *:Toggler-set*
+:Toggler set {name} {state}
+
+    Set feature {name} to {state}. The {state} can be one of:
+        • true, on, enabled        Enable the feature
+        • false, off, disabled      Disable the feature
+
+    Multi-word feature names must be quoted: >vim
+        :Toggler set "Feature Name" on
+<
+
+                                                         *:Toggler-toggle*
+:Toggler toggle {name}
+
+    Toggle feature {name} on/off. If currently enabled, disable it, and
+    vice versa.
+
+==============================================================================
+FUNCTIONS                                              *toggler-functions*
+
+require('toggler').setup({cfg})                       *toggler.setup()*
+
+    Initialize Toggler with configuration and enable the user command.
+
+    Parameters: ~
+        {cfg} (table|nil): Configuration table. See |toggler-config| for
+               available options. Defaults are merged with user-provided
+               configuration.
+
+    Example: >lua
+        require('toggler').setup({
+          features = { ... },
+          window = { title = "My Toggles" },
+        })
+<
+
+require('toggler').enable()                           *toggler.enable()*
+
+    Enable the Toggler user command. Normally called by setup(), but can
+    be used to re-enable if needed. Requires snacks.nvim to be available.
+
+    This function:
+        • Loads snacks.nvim
+        • Creates the |:Toggler| user command
+        • Sets up command completion
+
+==============================================================================
+CONFIGURATION                                            *toggler-config*
+
+Configuration is passed to |toggler.setup()| and merged with defaults.
+
+Features                                          *toggler-config-features*
+
+    Type: `table[]`
+    Default: Single example with Spelling feature
+
+    Array of feature definitions. Each feature must have:
+
+    • `name` (string): Short identifier used in CLI commands. Must be
+      unique. Used for completion and error messages.
+
+    • `description` (string, optional): User-friendly description shown
+      in the picker UI. Used for fuzzy searching.
+
+    • `get` (function): Returns boolean indicating current state.
+      - `true` means enabled
+      - `false` means disabled
+
+    • `set` (string|function): How to toggle the feature. Can be:
+      - Vim command string: ":set spell!", ":NvimContextVtToggle"
+      - Keystroke sequence: "<C-w>n", "tt"
+      - Lua function: function(state) ... end (receives target boolean)
+
+    • `icons` (table, optional): Per-feature icon overrides
+      - `enabled` (string): Icon when enabled (overrides global)
+      - `disabled` (string): Icon when disabled (overrides global)
+
+    Example with all fields: >lua
+        {
+          name = "Diagnostics",
+          description = "Show inline diagnostics",
+          icons = {
+            enabled = "✓",
+            disabled = "✗"
+          },
+          get = function()
+            return vim.diagnostic.is_enabled()
+          end,
+          set = function(state)
+            vim.diagnostic.enable(state)
+          end
+        }
+<
+
+                                         *toggler-config-features-examples*
+
+    Minimum viable feature: >lua
+        {
+          name = "Lines",
+          get = function() return vim.wo.number end,
+          set = ":set number!",
+        }
+<
+
+    Using Vim command: >lua
+        {
+          name = "Spelling",
+          description = "Show red underline for spelling errors",
+          get = function() return vim.wo.spell end,
+          set = ":set spell!",
+        }
+<
+
+    Using Lua function: >lua
+        {
+          name = "Diagnostics",
+          description = "Show inline diagnostics",
+          get = function() return vim.diagnostic.is_enabled() end,
+          set = function(state) vim.diagnostic.enable(state) end,
+        }
+<
+
+    Using keystrokes: >lua
+        {
+          name = "Quickfix",
+          description = "Toggle quickfix window",
+          get = function()
+            return #vim.fn.getqflist() > 0
+          end,
+          set = "<C-q>",
+        }
+<
+
+    With custom icons: >lua
+        {
+          name = "Lines",
+          description = "Line numbers on the left",
+          icons = {
+            enabled = "",
+            disabled = "",
+          },
+          get = function() return vim.wo.number end,
+          set = function(state) vim.wo.number = state end,
+        }
+<
+
+Window                                              *toggler-config-window*
+
+    Type: `table[extended]`
+    Default: See below
+
+    Snacks.nvim picker configuration. Nearly all snacks.picker options
+    are supported and passed through unchanged. The `format`, `items`,
+    and `confirm` fields are overridden by Toggler.
+
+    Default: >lua
+        window = {
+          title = "Toggle Distractions",
+          layout = { preset = "vscode" },
+          prompt = "❯ ",
+          auto_close = true,
+          enter = true,
+          preview = "none",
+        }
+<
+
+    Common customizations:
+        • `title` (string): Window title shown to user
+        • `layout` (table): Layout preset. See snacks.nvim docs
+        • `prompt` (string): Prompt prefix shown in search
+        • `auto_close` (boolean): Close window after toggling
+        • `enter` (boolean): Focus window on open
+
+    For all available options, see snacks.nvim picker configuration:
+    <https://github.com/folke/snacks.nvim/blob/main/lua/snacks/picker/config.lua>
+
+Icons                                                *toggler-config-icons*
+
+    Type: `table`
+    Default: >
+        icons = {
+          enabled = "[x]",
+          disabled = "[ ]",
+        }
+<
+
+    Global icon defaults used for all features. Per-feature icons in a
+    feature's `icons` table override these defaults.
+
+    • `enabled` (string): Icon shown when feature is enabled
+    • `disabled` (string): Icon shown when feature is disabled
+
+Highlights                                        *toggler-config-highlights*
+
+    Type: `table`
+    Default: See |toggler-highlight-groups|
+
+    Customize the appearance of the picker window. Each key is a
+    highlight group name, and the value is a table of highlight
+    attributes passed to |nvim_set_hl()|.
+
+    Attributes can include: `link`, `bold`, `italic`, `fg`, `bg`,
+    `ctermfg`, `ctermbg`, `underline`, etc.
+
+    Default: >lua
+        highlights = {
+          TogglerPickerIconOn = { link = "DiagnosticOk" },
+          TogglerPickerNameOn = { link = "Normal", bold = true },
+          TogglerPickerDescriptionOn = { link = "Comment" },
+
+          TogglerPickerIconOff = { link = "DiagnosticError" },
+          TogglerPickerNameOff = { link = "Normal", bold = true },
+          TogglerPickerDescriptionOff = { link = "Comment" },
+
+          TogglerPickerIconOnSelected = { link = "Search" },
+          TogglerPickerNameOnSelected = { link = "Search", bold = true },
+          TogglerPickerDescriptionOnSelected = { link = "Search" },
+
+          TogglerPickerIconOffSelected = { link = "Search" },
+          TogglerPickerNameOffSelected = { link = "Search", bold = true },
+          TogglerPickerDescriptionOffSelected = { link = "Search" },
+        }
+<
+
+    See |nvim_set_hl()| for complete documentation of highlight attributes.
+
+==============================================================================
+HIGHLIGHT GROUPS                                  *toggler-highlight-groups*
+
+The following highlight groups are defined and used by Toggler. Each can
+be customized via |toggler-config-highlights|. Default highlights link to
+other common groups for sensible fallbacks.
+
+Icon Highlights ~
+
+                                                 *hl-TogglerPickerIconOn*
+TogglerPickerIconOn
+        Icon shown for enabled features in the picker.
+        Default: linked to DiagnosticOk
+
+                                                *hl-TogglerPickerIconOff*
+TogglerPickerIconOff
+        Icon shown for disabled features in the picker.
+        Default: linked to DiagnosticError
+
+                                           *hl-TogglerPickerIconOnSelected*
+TogglerPickerIconOnSelected
+        Icon shown for selected enabled features in the picker.
+        Default: linked to Search
+
+                                          *hl-TogglerPickerIconOffSelected*
+TogglerPickerIconOffSelected
+        Icon shown for selected disabled features in the picker.
+        Default: linked to Search
+
+Name Highlights ~
+
+                                                 *hl-TogglerPickerNameOn*
+TogglerPickerNameOn
+        Feature name shown for enabled features in the picker.
+        Default: linked to Normal with bold
+
+                                                *hl-TogglerPickerNameOff*
+TogglerPickerNameOff
+        Feature name shown for disabled features in the picker.
+        Default: linked to Normal with bold
+
+                                           *hl-TogglerPickerNameOnSelected*
+TogglerPickerNameOnSelected
+        Feature name shown for selected enabled features in the picker.
+        Default: linked to Search with bold
+
+                                          *hl-TogglerPickerNameOffSelected*
+TogglerPickerNameOffSelected
+        Feature name shown for selected disabled features in the picker.
+        Default: linked to Search with bold
+
+Description Highlights ~
+
+                                            *hl-TogglerPickerDescriptionOn*
+TogglerPickerDescriptionOn
+        Feature description shown for enabled features in the picker.
+        Default: linked to Comment
+
+                                           *hl-TogglerPickerDescriptionOff*
+TogglerPickerDescriptionOff
+        Feature description shown for disabled features in the picker.
+        Default: linked to Comment
+
+                                      *hl-TogglerPickerDescriptionOnSelected*
+TogglerPickerDescriptionOnSelected
+        Feature description shown for selected enabled features in the
+        picker. Default: linked to Search
+
+                                     *hl-TogglerPickerDescriptionOffSelected*
+TogglerPickerDescriptionOffSelected
+        Feature description shown for selected disabled features in the
+        picker. Default: linked to Search
+
+==============================================================================
+EXAMPLES                                                  *toggler-examples*
+
+Basic Setup ~
+                                                    *toggler-example-basic*
+
+Minimal configuration with a single feature: >lua
+    require('toggler').setup({
+      features = {
+        {
+          name = "Spelling",
+          description = "Show red underline for spelling errors",
+          get = function() return vim.wo.spell end,
+          set = ":set spell!",
+        },
+      }
+    })
+<
+
+Complete Feature Definition ~
+                                                  *toggler-example-complete*
+
+A feature with all available options: >lua
+    {
+      name = "Lines",
+      description = "Line numbers on the left side of a window",
+      icons = {
+        enabled = "",
+        disabled = "",
+      },
+      get = function()
+        return vim.wo.number
+      end,
+      set = function(state)
+        vim.wo.number = state
+      end,
+    }
+<
+
+Toggle Spelling with Vim Command ~
+                                                   *toggler-example-command*
+
+Simple feature toggled via Vim command: >lua
+    {
+      name = "Spelling",
+      description = "Show red underline for spelling errors",
+      get = function() return vim.wo.spell end,
+      set = ":set spell!",
+    }
+<
+
+Toggle Diagnostics with Lua Function ~
+                                                   *toggler-example-function*
+
+Feature with Lua function for more control: >lua
+    {
+      name = "Diagnostics",
+      description = "Show inline diagnostics",
+      get = function() return vim.diagnostic.is_enabled() end,
+      set = function(state) vim.diagnostic.enable(state) end,
+    }
+<
+
+Toggle Quickfix with Keystrokes ~
+                                                  *toggler-example-keystrokes*
+
+Feature toggled by sending key sequences: >lua
+    {
+      name = "Quickfix",
+      description = "Toggle quickfix window",
+      get = function()
+        return #vim.fn.getqflist() > 0
+      end,
+      set = "<C-q>",  -- Assumes <C-q> is bound to toggle quickfix
+    }
+<
+
+Extracting Hidden State ~
+                                            *toggler-example-hidden-state*
+
+Advanced pattern using debug.getupvalue() to access plugin internal state
+when a plugin doesn't expose a public API: >lua
+    {
+      name = "Context VT (Tree-sitter)",
+      description = "Scope closing tree-sitter context",
+      get = function()
+        local _, value = debug.getupvalue(
+          require("nvim_context_vt").toggle_context, 1
+        )
+        return value.enabled
+      end,
+      set = ":NvimContextVtToggle",
+    }
+<
+
+Note: This pattern is fragile and depends on the plugin's internal
+implementation. Use only when a public API isn't available.
+
+Multi-Feature Batch Toggling ~
+                                                    *toggler-example-batch*
+
+Toggler excels at toggling multiple features at once. Mark multiple items
+in the picker with <tab>, then press <enter> to toggle all at once.
+
+Use a Lua function to implement complex interactions between features: >lua
+    local function toggle_completion_sources(state)
+      -- Toggle blink.cmp off
+      require("blink.cmp").setup({ enabled = state })
+
+      -- Toggle GitHub Copilot on (inverse)
+      if state then
+        vim.cmd("Copilot disable")
+      else
+        vim.cmd("Copilot enable")
+      end
+    end
+
+    return {
+      name = "Completion Mode",
+      description = "Toggle between blink.cmp and GitHub Copilot",
+      get = function() return vim.b.cmp_enabled ~= false end,
+      set = toggle_completion_sources,
+    }
+<
+
+Custom Window Configuration ~
+                                               *toggler-example-window-config*
+
+Customize the picker window appearance: >lua
+    require('toggler').setup({
+      features = { ... },
+      window = {
+        title = "My Feature Toggles",
+        layout = { preset = "telescope" },
+        prompt = "🔌 ",
+        auto_close = false,
+        preview = "main",
+      }
+    })
+<
+
+Custom Highlight Groups ~
+                                              *toggler-example-highlights*
+
+Override highlight groups for your color scheme: >lua
+    require('toggler').setup({
+      features = { ... },
+      highlights = {
+        TogglerPickerIconOn = { fg = "#00ff00", bold = true },
+        TogglerPickerNameOn = { fg = "#00ff00", bold = true },
+        TogglerPickerDescriptionOn = { fg = "#888888" },
+
+        TogglerPickerIconOff = { fg = "#ff0000" },
+        TogglerPickerNameOff = { fg = "#ff0000" },
+        TogglerPickerDescriptionOff = { fg = "#888888" },
+
+        TogglerPickerIconOnSelected = { bg = "#333333", fg = "#ffff00" },
+        TogglerPickerNameOnSelected = { bg = "#333333", fg = "#ffff00" },
+        TogglerPickerDescriptionOnSelected = { bg = "#333333", fg = "#ffff00" },
+
+        TogglerPickerIconOffSelected = { bg = "#333333", fg = "#ffff00" },
+        TogglerPickerNameOffSelected = { bg = "#333333", fg = "#ffff00" },
+        TogglerPickerDescriptionOffSelected = { bg = "#333333", fg = "#ffff00" },
+      }
+    })
+<
+
+==============================================================================
+TIPS AND PATTERNS                                           *toggler-tips*
+
+Batch Toggling ~
+
+One of Toggler's key advantages is the ability to toggle multiple features
+at once through the UI. In the picker:
+
+1. Mark multiple features with <tab>
+2. Press <enter> to toggle all marked features
+
+This is especially useful for managing related feature flags or creating
+"focus modes" that disable multiple distracting features simultaneously.
+
+Scripting with the CLI ~
+
+Use the command-line interface to bind toggles to keymaps or scripts: >vim
+    nnoremap <leader>ts :Toggler set Spelling on<CR>
+    nnoremap <leader>tt :Toggler toggle Spelling<CR>
+    nnoremap <leader>tf :Toggler picker<CR>
+<
+
+Querying Feature State ~
+
+Check feature state from scripts or keymaps: >vim
+    :if system('lua require("toggler.commands").get_feature_or_error("Spelling")') ...
+<
+
+Or more directly via Lua: >lua
+    local config = require('toggler.config')
+    for _, feature in ipairs(config.options.features) do
+      if feature.name == "Spelling" then
+        local state = feature.get()
+        -- Do something with state
+      end
+    end
+<
+
+Feature Validation ~
+
+Toggler validates features when the picker opens. Invalid configurations
+will produce error notifications. Common issues:
+
+    • Missing required fields (`name`, `get`, `set`)
+    • `get` function throws an error or returns non-boolean
+    • `set` is neither string nor function
+    • Feature name is not a string
+
+==============================================================================
+TROUBLESHOOTING                                   *toggler-troubleshooting*
+
+Picker doesn't open ~
+
+    • Ensure snacks.nvim is installed and loaded
+    • Check that |toggler.setup()| was called in your config
+    • Verify no error messages in |:messages|
+
+Invalid feature error ~
+
+    • Check that feature has required fields: `name`, `get`, `set`
+    • Ensure `get` function returns a boolean (not nil, truthy, etc)
+    • Check that feature `name` is a unique string
+    • Look for Lua errors in feature's `get` function
+
+Command not found ~
+
+    • Ensure setup() was called: >lua
+        require('toggler').setup({ ... })
+<
+    • Try calling enable() manually if needed: >lua
+        require('toggler').enable()
+<
+
+Features not appearing in picker ~
+
+    • Check that features array is not empty in configuration
+    • Verify feature `name` is set (required field)
+    • Look for validation errors in |:messages|
+
+Multi-word feature names ~
+
+    • Must be quoted in command line: >vim
+        :Toggler get "Feature Name"
+<
+    • Completion handles quotes automatically when using tab-completion
+
+==============================================================================
+LICENSE                                                    *toggler-license*
+
+Toggler is licensed under the MIT License.
+
+Copyright (c) 2026 toggler.nvim
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
